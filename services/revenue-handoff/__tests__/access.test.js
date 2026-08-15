@@ -28,4 +28,9 @@ describe('generateApiAccess', () => {
     const a2 = await generateApiAccess('cs_y', { id: 'cus_1', email: 'x@y.com' });
     expect(a1.apiKey).not.toBe(a2.apiKey);
   });
+
+  test('throws when API_KEY_SALT is not set', async () => {
+    delete process.env.API_KEY_SALT;
+    await expect(generateApiAccess('cs_x', { id: 'cus_1' })).rejects.toThrow('API_KEY_SALT');
+  });
 });

@@ -21,6 +21,12 @@ async function sendOnboardingEmail(customer, access) {
     return;
   }
 
+  // Validate scheme to prevent SSRF
+  const parsedUrl = new URL(providerUrl);
+  if (parsedUrl.protocol !== 'https:') {
+    throw new Error('EMAIL_PROVIDER_URL must use https');
+  }
+
   const payload = {
     to: customer.email,
     from: fromEmail,

@@ -12,8 +12,14 @@ const crypto = require('crypto');
  * @returns {Promise<{apiKey: string, sessionId: string, createdAt: string}>}
  */
 async function generateApiAccess(sessionId, customer) {
-  const seed = `${process.env.API_KEY_SALT ?? 'default-salt'}:${sessionId}`;
-  const apiKey = crypto.createHmac('sha256', seed).update(customer.id).digest('hex');
+  const salt = process.env.API_KEY_SALT;
+  if (!salt) {
+    throw new Error('API_KEY_SALT environment variable is required');
+  }
+  const apiKey = crypto
+    .createHmac('sha256', salt)
+    .update(`${sessionId}:${customer.id}`)
+    .digest('hex');
 
   const access = {
     apiKey,
