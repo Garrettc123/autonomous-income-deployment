@@ -14,11 +14,22 @@ spec:
       labels:
         app: trading-bot
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: trading-bot
         image: autonomous-income/trading-bot:latest
         ports:
         - containerPort: 8080
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
         env:
         - name: DATABASE_URL
           valueFrom:
@@ -77,11 +88,22 @@ spec:
       labels:
         app: dropshipping-automation
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: dropshipping-automation
         image: autonomous-income/dropshipping-automation:latest
         ports:
         - containerPort: 8081
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
         env:
         - name: SHOPIFY_API_KEY
           valueFrom:
@@ -100,6 +122,18 @@ spec:
           limits:
             memory: "256Mi"
             cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 5
 
 ---
 # Content Generation Service
@@ -118,11 +152,22 @@ spec:
       labels:
         app: content-generator
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: content-generator
         image: autonomous-income/content-generator:latest
         ports:
         - containerPort: 8082
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
         env:
         - name: OPENAI_API_KEY
           valueFrom:
@@ -141,6 +186,18 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8082
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8082
+          initialDelaySeconds: 5
+          periodSeconds: 5
 
 ---
 # Revenue Dashboard Service
@@ -159,11 +216,22 @@ spec:
       labels:
         app: revenue-dashboard
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: revenue-dashboard
         image: autonomous-income/revenue-dashboard:latest
         ports:
         - containerPort: 3000
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
         env:
         - name: NODE_ENV
           value: "production"
@@ -174,6 +242,18 @@ spec:
           limits:
             memory: "512Mi"
             cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
 
 ---
 # Load Balancer Services
