@@ -12,6 +12,7 @@ tfplan
 *.key
 .env
 .env.local
+.secrets/
 
 # IDE
 .vscode/

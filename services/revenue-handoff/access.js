@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { getApiKeySalt } = require('./secrets-manager');
 
 /**
  * Generates a single API access key tied to a checkout session.
@@ -12,10 +13,7 @@ const crypto = require('crypto');
  * @returns {Promise<{apiKey: string, sessionId: string, createdAt: string}>}
  */
 async function generateApiAccess(sessionId, customer) {
-  const salt = process.env.API_KEY_SALT;
-  if (!salt) {
-    throw new Error('API_KEY_SALT environment variable is required');
-  }
+  const salt = getApiKeySalt();
   const apiKey = crypto
     .createHmac('sha256', salt)
     .update(`${sessionId}:${customer.id}`)

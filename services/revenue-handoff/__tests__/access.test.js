@@ -1,10 +1,12 @@
 'use strict';
 
-const { generateApiAccess } = require('../access');
-
 describe('generateApiAccess', () => {
+  let generateApiAccess;
+
   beforeEach(() => {
+    jest.resetModules();
     process.env.API_KEY_SALT = 'test-salt';
+    generateApiAccess = require('../access').generateApiAccess;
   });
 
   test('returns an object with apiKey, sessionId, and createdAt', async () => {
@@ -29,8 +31,11 @@ describe('generateApiAccess', () => {
     expect(a1.apiKey).not.toBe(a2.apiKey);
   });
 
-  test('throws when API_KEY_SALT is not set', async () => {
+  test('works without a pre-set API_KEY_SALT (auto-generates one)', async () => {
+    jest.resetModules();
     delete process.env.API_KEY_SALT;
-    await expect(generateApiAccess('cs_x', { id: 'cus_1' })).rejects.toThrow('API_KEY_SALT');
+    const { generateApiAccess: gen } = require('../access');
+    const access = await gen('cs_auto', { id: 'cus_auto', email: 'a@b.com' });
+    expect(access.apiKey).toHaveLength(64);
   });
 });
