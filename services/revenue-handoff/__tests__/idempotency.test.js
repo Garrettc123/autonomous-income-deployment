@@ -1,6 +1,6 @@
 'use strict';
 
-const { isDuplicate } = require('../idempotency');
+const { isDuplicate, _evictOldest } = require('../idempotency');
 
 describe('idempotency', () => {
   test('first call for a new eventId returns false', () => {
@@ -17,5 +17,21 @@ describe('idempotency', () => {
     expect(isDuplicate('evt_b')).toBe(false);
     expect(isDuplicate('evt_a')).toBe(true);
     expect(isDuplicate('evt_b')).toBe(true);
+  });
+
+  test('expired entry is not treated as duplicate', () => {
+    jest.useFakeTimers();
+    const eventId = 'evt_ttl_test';
+    isDuplicate(eventId); // mark as processed
+
+    // Advance time beyond TTL (24 h + 1 ms)
+    jest.advanceTimersByTime(24 * 60 * 60 * 1000 + 1);
+    expect(isDuplicate(eventId)).toBe(false);
+
+    jest.useRealTimers();
+  });
+
+  test('_evictOldest does not throw on empty store', () => {
+    expect(() => _evictOldest()).not.toThrow();
   });
 });

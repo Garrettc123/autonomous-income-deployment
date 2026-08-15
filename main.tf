@@ -119,6 +119,17 @@ resource "aws_lambda_function" "income_generator" {
   }
 }
 
+# CloudWatch Log Group for Lambda with retention policy
+resource "aws_cloudwatch_log_group" "income_generator" {
+  name              = "/aws/lambda/${aws_lambda_function.income_generator.function_name}"
+  retention_in_days = 30
+
+  tags = {
+    Name        = "income-generator-logs"
+    Environment = var.environment
+  }
+}
+
 # CloudWatch Event Rule for scheduled income generation
 resource "aws_cloudwatch_event_rule" "hourly_income" {
   name                = "autonomous-income-hourly"
@@ -151,6 +162,10 @@ resource "aws_dynamodb_table" "income_state" {
   point_in_time_recovery {
     enabled = true
   }
+
+  server_side_encryption {
+    enabled = true
+  }
   
   tags = {
     Name        = "income-state"
@@ -174,6 +189,43 @@ resource "aws_s3_bucket_versioning" "data" {
   versioning_configuration {
     status = "Enabled"
   }
+}
+
+# Block all public access to the data bucket
+resource "aws_s3_bucket_public_access_block" "data" {
+  bucket = aws_s3_bucket.data.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Enforce SSL-only access to the data bucket
+resource "aws_s3_bucket_policy" "data_ssl_only" {
+  bucket = aws_s3_bucket.data.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "DenyNonSSL"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          aws_s3_bucket.data.arn,
+          "${aws_s3_bucket.data.arn}/*",
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      }
+    ]
+  })
+
+  depends_on = [aws_s3_bucket_public_access_block.data]
 }
 
 # IAM Role for Lambda

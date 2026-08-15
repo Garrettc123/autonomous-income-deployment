@@ -31,4 +31,25 @@ describe('upsertCustomer', () => {
     expect(result.email).toBe('fallback@example.com');
     expect(result.id).toBe('cs_test_2');
   });
+
+  test('throws when email is missing', async () => {
+    const session = {
+      id: 'cs_test_noemail',
+      customer: 'cus_1',
+      amount_total: 1000,
+      currency: 'usd',
+    };
+    await expect(upsertCustomer(session)).rejects.toThrow(/Invalid or missing email/);
+  });
+
+  test('throws when email format is invalid', async () => {
+    const session = {
+      id: 'cs_test_bademail',
+      customer: 'cus_2',
+      amount_total: 1000,
+      currency: 'usd',
+      customer_details: { email: 'not-an-email', name: 'Bad' },
+    };
+    await expect(upsertCustomer(session)).rejects.toThrow(/Invalid or missing email/);
+  });
 });

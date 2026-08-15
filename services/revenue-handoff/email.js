@@ -11,6 +11,9 @@
  * @param {{ apiKey: string }} access
  * @returns {Promise<void>}
  */
+
+const FETCH_TIMEOUT_MS = 10_000; // 10 s
+
 async function sendOnboardingEmail(customer, access) {
   const providerUrl = process.env.EMAIL_PROVIDER_URL;
   const emailApiKey = process.env.EMAIL_API_KEY;
@@ -44,14 +47,23 @@ async function sendOnboardingEmail(customer, access) {
     ].join('\n'),
   };
 
-  const response = await fetch(providerUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer ' + emailApiKey,
-    },
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  let response;
+  try {
+    response = await fetch(providerUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + emailApiKey,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
     const text = await response.text();

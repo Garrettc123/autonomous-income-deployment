@@ -18,6 +18,9 @@ const { processCheckoutSession } = require('./fulfillment');
 
 const router = express.Router();
 
+// Maximum raw body accepted from Stripe (Stripe payloads are well under 64 kb)
+const STRIPE_RAW_BODY_LIMIT = '64kb';
+
 /**
  * POST /webhook/stripe
  *
@@ -26,7 +29,7 @@ const router = express.Router();
  */
 router.post(
   '/stripe',
-  express.raw({ type: 'application/json' }),
+  express.raw({ type: 'application/json', limit: STRIPE_RAW_BODY_LIMIT }),
   async (req, res) => {
     const sig = req.headers['stripe-signature'];
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -34,6 +37,10 @@ router.post(
     if (!webhookSecret) {
       console.error('STRIPE_WEBHOOK_SECRET is not configured');
       return res.status(500).json({ error: 'Webhook secret not configured' });
+    }
+
+    if (!sig) {
+      return res.status(400).json({ error: 'Missing stripe-signature header' });
     }
 
     let event;

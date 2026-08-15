@@ -11,6 +11,9 @@
  */
 
 const LINEAR_API_URL = 'https://api.linear.app/graphql';
+const FETCH_TIMEOUT_MS = 10_000; // 10 s
+const MAX_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 500;
 
 const CREATE_COMMENT_MUTATION = `
   mutation CreateComment($issueId: String!, $body: String!) {
@@ -25,7 +28,21 @@ const CREATE_COMMENT_MUTATION = `
 `;
 
 /**
- * Posts a comment to a Linear issue.
+ * Performs a fetch with a per-request AbortController timeout.
+ * @private
+ */
+async function fetchWithTimeout(url, options) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Posts a comment to a Linear issue, retrying on transient errors (429 / 5xx).
  *
  * @param {string} issueId
  * @param {string} body
@@ -38,29 +55,58 @@ async function postLinearComment(issueId, body) {
     return;
   }
 
-  const response = await fetch(LINEAR_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: apiKey,
-    },
-    body: JSON.stringify({
-      query: CREATE_COMMENT_MUTATION,
-      variables: { issueId, body },
-    }),
-  });
+  let attempt = 0;
+  while (attempt < MAX_RETRIES) {
+    let response;
+    try {
+      response = await fetchWithTimeout(LINEAR_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: apiKey,
+        },
+        body: JSON.stringify({
+          query: CREATE_COMMENT_MUTATION,
+          variables: { issueId, body },
+        }),
+      });
+    } catch (err) {
+      // Network error or timeout
+      attempt++;
+      if (attempt >= MAX_RETRIES) throw new Error(`Linear API network error after ${attempt} attempts: ${err.message}`);
+      const delay = RETRY_BASE_DELAY_MS * 2 ** (attempt - 1);
+      console.warn(`[linear] Network error (attempt ${attempt}/${MAX_RETRIES}), retrying in ${delay} ms:`, err.message);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Linear API error (${response.status}): ${text}`);
+    // Retry on rate-limit or server errors
+    if (response.status === 429 || response.status >= 500) {
+      attempt++;
+      if (attempt >= MAX_RETRIES) {
+        const text = await response.text();
+        throw new Error(`Linear API error (${response.status}) after ${attempt} attempts: ${text}`);
+      }
+      const retryAfter = Number(response.headers.get('retry-after') ?? 0);
+      const delay = retryAfter > 0 ? retryAfter * 1000 : RETRY_BASE_DELAY_MS * 2 ** (attempt - 1);
+      console.warn(`[linear] HTTP ${response.status} (attempt ${attempt}/${MAX_RETRIES}), retrying in ${delay} ms`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Linear API error (${response.status}): ${text}`);
+    }
+
+    const json = await response.json();
+    if (json.errors?.length) {
+      throw new Error(`Linear GraphQL error: ${JSON.stringify(json.errors)}`);
+    }
+
+    console.info(`[linear] Comment posted to issue ${issueId}`);
+    return;
   }
-
-  const json = await response.json();
-  if (json.errors?.length) {
-    throw new Error(`Linear GraphQL error: ${JSON.stringify(json.errors)}`);
-  }
-
-  console.info(`[linear] Comment posted to issue ${issueId}`);
 }
 
 /**
