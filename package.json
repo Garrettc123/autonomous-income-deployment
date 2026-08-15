@@ -27,6 +27,7 @@
     "ws": "^8.14.0"
   },
   "devDependencies": {
+    "browserslist": "^4.28.8",
     "eslint": "^8.54.0",
     "jest": "^29.7.0",
     "node-releases": "^2.0.53",
