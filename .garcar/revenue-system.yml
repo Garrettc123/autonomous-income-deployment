@@ -1,0 +1,29 @@
+# Garcar Revenue System Contract
+# Installed automatically across Garcar repositories.
+version: "1.0"
+system: "Garcar Customer Magnet + Monetization Engine"
+mode: "central-control"
+revenue:
+  discovery: true
+  qualification: true
+  offer_routing: true
+  attribution: true
+  fulfillment_tracking: true
+  retention_tracking: true
+  expansion_tracking: true
+  recurring_revenue_tracking: true
+safety:
+  external_outbound: "approval_required"
+  payment_creation: "explicit_request_required"
+  refunds_credits: "approval_required"
+  production_changes: "approval_required"
+  claims_require_evidence: true
+  test_payments: false
+  fabricated_metrics: false
+  fabricated_customers: false
+  bulk_spam: false
+  secrets_in_repo: false
+integration:
+  central_revenue_os: "Garrettc123/garcar-revenue-os"
+  payment_runtime: "inhouse-termux-cloudflare"
+  source_of_truth: "github"
